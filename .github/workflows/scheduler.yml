@@ -1,0 +1,48 @@
+name: AquaPrediksi Scheduler
+
+on:
+  schedule:
+    # PENTING: GitHub Actions menggunakan UTC, bukan WIB (WIB = UTC+7)
+    # Jam 07:00 WIB = 00:00 UTC
+    # Jam 19:00 WIB = 12:00 UTC
+    - cron: "0 0,12 * * *"
+
+  # Baris ini ditambahkan agar Anda bisa menjalankan "Test" manual
+  workflow_dispatch:
+
+jobs:
+  run-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      # Langkah 1: Checkout kode (dan database .db jika sudah ada)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Langkah 2: Siapkan lingkungan Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # Langkah 3: Install library dari requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Langkah 4: Jalankan script Python Anda
+      - name: Run irrigation controller script
+        run: python run.py
+
+      # Langkah 5: (PALING PENTING) Commit dan Push database
+      - name: Commit and push database changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add aquaprediksi.db  # Hanya tambahkan file database
+
+          # Cek apakah ada perubahan, baru commit
+          if ! git diff --staged --quiet; then
+            git commit -m "Update: Data irigasi otomatis [SKIP CI]"
+            git push
+          else
+            echo "Tidak ada perubahan pada database."
+          fi
